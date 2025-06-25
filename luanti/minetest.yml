@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jeux
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: luanti-pvc
+  namespace: jeux
+spec:
+  storageClassName: "local-path"
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: luanti
+  namespace: jeux
+  labels:
+    app: luanti
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: luanti
+  template:
+    metadata:
+      labels:
+        app: luanti
+    spec:
+      initContainers:
+        - name: luanti-clonet
+          image: alpine/git:2.49.0
+          command:
+            - sh
+            - -c
+            - |
+              echo "Cleaning worlds"
+              [ -f /config/.minetest/wolrds/purged ] && echo "already purged" || rm -rf /config/.minetest/worlds/world
+              touch /config/.minetest/worlds/purged
+              [ -d /config/.minetest/games/ctf ] && echo "already installed" || git clone --recursive https://github.com/MT-CTF/capturetheflag /config/.minetest/games/ctf
+          volumeMounts:
+            - name: luanti-data
+              mountPath: /config/.minetest
+      containers:
+        - name: luanti
+          image: lscr.io/linuxserver/luanti:latest
+          env:
+            - name: TZ
+              value: "Europe/Paris"
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: CLI_ARGS
+              value: "--gameid ctf"
+            - name: mypassword
+               valueFrom:
+                secretKeyRef:
+                  name: luanti-secret
+                  key: password
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+          ports:
+            - containerPort: 30000
+              protocol: UDP
+          volumeMounts:
+            - name: luanti-data
+              mountPath: /config/.minetest
+      volumes:
+        - name: luanti-data
+          persistentVolumeClaim:
+            claimName: luanti-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: luanti-svc
+  namespace: jeux
+spec:
+  type: LoadBalancer
+  ports:
+    - name: luanti
+      port: 30000
+      targetPort: 30000
+      protocol: UDP
+  selector:
+    app: luanti
