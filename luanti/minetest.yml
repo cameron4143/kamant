@@ -34,14 +34,14 @@ spec:
         app: luanti
     spec:
       initContainers:
-        - name: luanti-cloner
+        - name: luanti-clonet
           image: alpine/git:2.49.0
           command:
             - sh
             - -c
             - |
-              echo "cleaning worlds"
-              [ -f /config/.minetest/worlds/purged ] && echo "already purged" || rm -rf /config/.minetest/worlds/world
+              echo "Cleaning worlds"
+              [ -f /config/.minetest/wolrds/purged ] && echo "already purged" || rm -rf /config/.minetest/worlds/world
               touch /config/.minetest/worlds/purged
               [ -d /config/.minetest/games/ctf ] && echo "already installed" || git clone --recursive https://github.com/MT-CTF/capturetheflag /config/.minetest/games/ctf
           volumeMounts:
@@ -93,3 +93,5 @@ spec:
       protocol: UDP
   selector:
     app: luanti
+
+
